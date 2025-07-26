@@ -1,0 +1,16 @@
+streamlit
+pandas
+numpy
+sodapy 
+dotenv
+plotly
+pandas
+python-dotenv
+pytz
+psycopg2-binary
+streamlit-autorefresh
+yahooquery
+supabase
+postgrest
+requests
+numpy
