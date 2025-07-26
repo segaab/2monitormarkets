@@ -3,9 +3,6 @@ import pandas as pd
 from supabase_client import get_supabase_client
 import logging
 import numpy as np # Import numpy for percentile calculation
-from pytz import timezone
-import pytz
-
 
 # Configure logging - Set level to INFO for normal operation, DEBUG for detailed calculation logs
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -111,8 +108,8 @@ def calculate_net_position_ratio(long, short):
     ratio = (long - short) / total_positions
     return ratio
 
-def calculate_historical_net_ratio_changes_by_group(reports, asset_name, asset_group_direction_thresholds):
-    """Calculates the net position ratio change for each report compared to the previous, separated into positive/negative, using asset-specific thresholds."""
+def calculate_historical_net_ratio_changes_by_group(reports):
+    """Calculates the net position ratio change for each report compared to the previous, separated into positive/negative."""
     if not isinstance(reports, list) or len(reports) < 2:
         return {category: {'positive': [], 'negative': []} for category in TRADER_CATEGORIES}
 
@@ -133,13 +130,9 @@ def calculate_historical_net_ratio_changes_by_group(reports, asset_name, asset_g
 
              net_ratio_change = latest_ratio - previous_ratio
 
-             # Get thresholds for the current asset and category
-             positive_threshold = asset_group_direction_thresholds[asset_name][category]['positive']
-             negative_threshold = asset_group_direction_thresholds[asset_name][category]['negative']
-
-             if net_ratio_change > positive_threshold:
+             if net_ratio_change > 0:
                  changes_by_group[category]['positive'].append(net_ratio_change)
-             elif net_ratio_change < -negative_threshold:
+             elif net_ratio_change < 0:
                  changes_by_group[category]['negative'].append(net_ratio_change)
 
     return changes_by_group
@@ -194,7 +187,7 @@ def main():
         historical_reports = fetch_historical_reports(supabase_client, asset_name, limit=52)
 
         if historical_reports and len(historical_reports) >= 2:
-            historical_changes_by_group = calculate_historical_net_ratio_changes_by_group(historical_reports, asset_name, asset_group_direction_thresholds)
+            historical_changes_by_group = calculate_historical_net_ratio_changes_by_group(historical_reports)
 
             for category in TRADER_CATEGORIES:
                  asset_group_direction_thresholds[asset_name][category] = {} # Initialize direction dictionary
@@ -366,75 +359,6 @@ def main():
     elif displayed_assets_count == 0:
          st.info("No assets to display. Ensure you have at least two recent reports per asset and enough historical data (at least 2 reports) to calculate thresholds.")
 
-def fetch_latest_cot_data():
-    """Fetches the latest and previous COT reports for all target assets and computes net position ratio changes."""
-    logging.info("Starting fetch_latest_cot_data()...")
-
-    supabase_client = get_supabase_client()
-    if not supabase_client:
-        logging.error("Failed to initialize Supabase client.")
-        return pd.DataFrame(), pd.DataFrame()
-
-    results = []
-
-    for asset_name in TARGET_ASSETS:
-        reports = fetch_latest_two_reports(supabase_client, asset_name)
-        if reports and len(reports) >= 2:
-            changes = calculate_latest_net_ratio_changes(reports)
-            if changes:
-                results.append({
-                    "market_and_exchange_names": asset_name,
-                    **changes
-                })
-
-    df = pd.DataFrame(results)
-    return df, None  # No previous_df needed for dashboard use
-
-def compute_net_position_ratios(df_latest, df_prev):
-    """Combines two COT snapshots into a DataFrame of net ratio changes per trader category."""
-    combined = []
-
-    if df_latest is None or df_prev is None:
-        return pd.DataFrame()
-
-    latest_assets = df_latest['market_and_exchange_names'].unique()
-
-    for asset_name in latest_assets:
-        latest = df_latest[df_latest['market_and_exchange_names'] == asset_name]
-        prev = df_prev[df_prev['market_and_exchange_names'] == asset_name]
-
-        if not latest.empty and not prev.empty:
-            latest = latest.iloc[0]
-            prev = prev.iloc[0]
-
-            result = {
-                "market_and_exchange_names": asset_name,
-                "noncomm_net_ratio_change": calculate_net_position_ratio(
-                    latest.get("noncomm_positions_long_all", 0),
-                    latest.get("noncomm_positions_short_all", 0)
-                ) - calculate_net_position_ratio(
-                    prev.get("noncomm_positions_long_all", 0),
-                    prev.get("noncomm_positions_short_all", 0)
-                ),
-                "comm_net_ratio_change": calculate_net_position_ratio(
-                    latest.get("comm_positions_long_all", 0),
-                    latest.get("comm_positions_short_all", 0)
-                ) - calculate_net_position_ratio(
-                    prev.get("comm_positions_long_all", 0),
-                    prev.get("comm_positions_short_all", 0)
-                ),
-                "nonrep_net_ratio_change": calculate_net_position_ratio(
-                    latest.get("nonrept_positions_long_all", 0),
-                    latest.get("nonrept_positions_short_all", 0)
-                ) - calculate_net_position_ratio(
-                    prev.get("nonrept_positions_long_all", 0),
-                    prev.get("nonrept_positions_short_all", 0)
-                )
-            }
-
-            combined.append(result)
-
-    return pd.DataFrame(combined)
 
 if __name__ == "__main__":
     main()
