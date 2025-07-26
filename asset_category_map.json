@@ -1,0 +1,29 @@
+{
+  "FX": [
+    "6E=F",
+    "6A=F",
+    "6J=F",
+    "6C=F",
+    "6B=F",
+    "6N=F",
+    "6S=F"
+  ],
+  "Metals": [
+    "GC=F",
+    "SI=F",
+    "PL=F",
+    "PA=F",
+    "HG=F",
+    "ALI=F"
+  ],
+  "Energy": [
+    "CL=F",
+    "NG=F",
+    "BZ=F"
+  ],
+  "Crypto": [
+    "BTC-USD",
+    "MBT=F",
+    "ETH-USD"
+  ]
+} 
